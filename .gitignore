@@ -11,6 +11,7 @@ dist/
 # Artefactos de las pruebas (los HTML/PS1 sí se versionan)
 _test/*.png
 _test/*.txt
+push_log.txt
 
 # SO / editores
 Thumbs.db
