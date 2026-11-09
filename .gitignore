@@ -1,0 +1,20 @@
+# Dependencias y build (esta app no tiene build, pero por si acaso)
+node_modules/
+dist/
+.vite/
+
+# Entornos
+.env
+.env.*
+!.env.example
+
+# Artefactos de las pruebas (los HTML/PS1 sí se versionan)
+_test/*.png
+_test/*.txt
+
+# SO / editores
+Thumbs.db
+.DS_Store
+*.log
+.idea/
+.vscode/

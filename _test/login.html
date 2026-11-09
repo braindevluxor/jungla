@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prueba de acceso por usuario · La Jungla</title>
+  <script>
+    window.__ERRORES = [];
+    window.__LOG = [];
+
+    // Base simulada: usuario → email interno (como la función SQL)
+    const CUENTAS = {
+      dueno:     { email: 'duena@lajungla.local', pass: 'secret12', activo: true },
+      carlos:    { email: 'carlos@lajungla.local', pass: 'secret12', activo: true },
+      'lucia.v': { email: 'lucia@lajungla.local', pass: 'secret12', activo: false },
+      'maria@gmail.com': { email: 'maria@gmail.com', pass: 'secret12', activo: true },
+    };
+
+    const PERFIL = {
+      id: 'u1', usuario: 'dueno', nombre: 'María Dueña',
+      rol: 'dueno', telefono: null, activo: true, created_at: '2026-01-05T10:00:00Z',
+    };
+
+    window.supabase = {
+      createClient: () => ({
+        from: (tabla) => {
+          if (tabla === 'profiles') {
+            return {
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: () => Promise.resolve({ data: PERFIL, error: null }),
+                  then: (ok, mal) => Promise.resolve({ data: PERFIL, error: null }).then(ok, mal),
+                }),
+                then: (ok, mal) => Promise.resolve({ data: [PERFIL], error: null }).then(ok, mal),
+              }),
+            };
+          }
+          const api = {
+            select: () => api, insert: () => api, update: () => api, delete: () => api,
+            eq: () => api, order: () => api, limit: () => api, rango: () => api,
+            single: () => api, maybeSingle: () => api,
+            then: (ok, mal) => Promise.resolve({ data: [], error: null, count: 0 }).then(ok, mal),
+          };
+          return api;
+        },
+        rpc: (nombre, args) => {
+          window.__LOG.push({ rpc: nombre, args });
+          if (nombre !== 'login_email') {
+            return Promise.resolve({ data: null, error: { message: 'PGRST202: Could not find the function' } });
+          }
+          const u = String(args.p_usuario || '').toLowerCase();
+          const cuenta = CUENTAS[u] || Object.values(CUENTAS).find((c) => c.email === u);
+          return Promise.resolve({ data: cuenta ? cuenta.email : null, error: null });
+        },
+        auth: {
+          getSession: () => Promise.resolve({ data: { session: window.__SESION ? { user: { id: 'u1' } } : null } }),
+          onAuthStateChange: (cb) => { window.__cbAuth = cb; return { data: { subscription: {} } }; },
+          signInWithPassword: ({ email, password }) => {
+            window.__LOG.push({ signIn: email });
+            const cuenta = Object.values(CUENTAS).find((c) => c.email === email);
+            if (!cuenta || cuenta.pass !== password || !cuenta.activo) {
+              return Promise.resolve({ data: { session: null }, error: { message: 'Invalid login credentials' } });
+            }
+            window.__SESION = true;
+            const sesion = { user: { id: 'u1' } };
+            // Como hace Supabase: avisa a los oyentes de cambio de sesión
+            setTimeout(() => window.__cbAuth?.('SIGNED_IN', sesion), 0);
+            return Promise.resolve({ data: { session: sesion }, error: null });
+          },
+          signOut: () => { window.__SESION = false; return Promise.resolve({ error: null }); },
+          setSession: () => Promise.resolve({ data: {}, error: null }),
+          signUp: () => Promise.resolve({ data: { user: { id: 'n' }, session: null }, error: null }),
+        },
+      }),
+    };
+
+    window.addEventListener('error', (e) => window.__ERRORES.push('error: ' + e.message));
+    window.addEventListener('unhandledrejection', (e) => window.__ERRORES.push('rejection: ' + (e.reason && e.reason.message || e.reason)));
+    const _log = console.error.bind(console);
+    console.error = (...a) => { window.__ERRORES.push('console: ' + a.map(String).join(' ')); _log(...a); };
+  </script>
+</head>
+<body>
+  <div id="boot" class="boot"><div class="boot__mark"></div><p class="boot__text">Cargando…</p></div>
+  <div id="app" class="app" hidden></div>
+  <div id="toast-root" class="toast-root" role="status"></div>
+  <div id="modal-root"></div>
+  <script type="module" src="../js/app.js"></script>
+  <script type="module">
+    // Secuencia de pruebas tras cargar la app
+    const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function probar(entrada, password) {
+      window.__LOG.length = 0;
+      const form = document.querySelector('.login__form');
+      // Si ya se entró, no hay formulario: no es un error
+      if (!form) return { entrada, sinFormulario: true };
+      form.identidad.value = entrada;
+      form.password.value = password;
+      form.requestSubmit();
+      await espera(450);
+      const toast = document.querySelector('#toast-root .toast');
+      return {
+        entrada,
+        rpc: window.__LOG.find((l) => l.rpc)?.args || null,
+        signIn: window.__LOG.find((l) => l.signIn)?.signIn || null,
+        toastError: toast && toast.classList.contains('toast--error') ? toast.textContent.trim() : null,
+        entro: !document.querySelector('.login__form'),
+      };
+    }
+
+    window.addEventListener('load', async () => {
+      await espera(1800);
+      const resultados = [];
+      // Caso email directo: en una carga aparte (?caso=email)
+      if (new URLSearchParams(location.search).get('caso') === 'email') {
+        resultados.push(await probar('maria@gmail.com', 'mala'));  // pass mala
+        resultados.push(await probar('maria@gmail.com', 'secret12')); // éxito
+      } else {
+        // Primero los casos que deben FALLAR (si uno entra, ya no hay formulario)
+        resultados.push(await probar('noexiste', 'secret12'));     // usuario inexistente
+        resultados.push(await probar('lucia.v', 'secret12'));      // suspendido
+        resultados.push(await probar('carlos', 'mala'));           // contraseña mala
+        resultados.push(await probar('DUENO', 'mala'));            // mayúsculas + pass mala
+        // Éxito al final: entra y desaparece el formulario
+        resultados.push(await probar('DUENO', 'secret12'));
+      }
+      window.__ENTRO = !document.querySelector('.login__form');
+
+      const marca = document.createElement('div');
+      marca.id = 'resultado-prueba';
+      marca.style.display = 'none';
+      marca.textContent = JSON.stringify({ errores: window.__ERRORES, resultados });
+      document.body.appendChild(marca);
+    });
+  </script>
+</body>
+</html>

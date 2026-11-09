@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Muestra de iconos · La Jungla</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+  <style>
+    body { padding: 24px; }
+    .fila { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 26px; }
+    .caja { display: grid; place-items: center; gap: 6px; width: 96px; height: 96px; border-radius: 12px; }
+    .verde { background: var(--verde-800); color: var(--oro-400); }
+    .blanco { background: #fff; border: 1px solid var(--linea); color: var(--verde-700); }
+    .oro { background: var(--oro-100); color: var(--oro-600); }
+    .etq { font-size: 10px; color: inherit; opacity: .8; }
+  </style>
+</head>
+<body>
+  <div id="muestra"></div>
+  <script type="module">
+    import { icono } from '../js/lib/icons.js';
+
+    const casos = [
+      { nombre: 'caballos', tam: 48 },
+      { nombre: 'herrajes', tam: 48 },
+      { nombre: 'panel', tam: 48 },
+      { nombre: 'alimentacion', tam: 48 },
+      { nombre: 'medicinas', tam: 48 },
+    ];
+    const fondos = ['verde', 'blanco', 'oro'];
+
+    document.getElementById('muestra').innerHTML = fondos.map((f) => `
+      <div class="fila ${f === 'verde' ? '' : ''}">
+        ${casos.map((c) => `
+          <div class="caja ${f}">
+            ${icono(c.nombre, c.tam)}
+            <span class="etq">${c.nombre} · ${c.tam}</span>
+          </div>`).join('')}
+      </div>`).join('') + `
+      <div class="fila">
+        <div class="caja verde">${icono('caballos', 19)}<span class="etq">nav 19</span></div>
+        <div class="caja blanco">${icono('caballos', 17)}<span class="etq">card 17</span></div>
+        <div class="caja verde">${icono('herrajes', 19)}<span class="etq">nav 19</span></div>
+        <div class="caja blanco">${icono('herrajes', 44)}<span class="etq">vacío 44</span></div>
+        <div class="caja oro">${icono('caballos', 38)}<span class="etq">avatar 38</span></div>
+      </div>`;
+
+    const d = document.createElement('div');
+    d.id = 'resultado-prueba';
+    d.style.display = 'none';
+    d.textContent = JSON.stringify({
+      raster: document.querySelectorAll('.ico--raster').length,
+      svg: document.querySelectorAll('svg.ico').length,
+    });
+    document.body.appendChild(d);
+  </script>
+</body>
+</html>

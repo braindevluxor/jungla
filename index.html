@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>La Jungla · Caballeriza</title>
+  <meta name="description" content="Sistema de administración de la caballeriza La Jungla: caballos, alimentación, inventario, herrajes, historial veterinario y competencias." />
+  <meta name="theme-color" content="#0F2A21" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="La Jungla" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/favicon.ico" sizes="any" />
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="boot" class="boot" aria-live="polite">
+    <div class="boot__mark" aria-hidden="true"></div>
+    <p class="boot__text">Cargando La Jungla…</p>
+  </div>
+
+  <!--
+    La app necesita http(s): los módulos ES y la caché del service worker
+    están bloqueados con el protocolo file:// (doble clic en index.html).
+    Si se abre así, se explica en lugar de dejar la pantalla de carga.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const boot = document.getElementById('boot');
+        if (!boot) return;
+        boot.classList.add('boot--aviso');
+        boot.innerHTML = `
+          <div class="boot__caja" role="alert">
+            <p class="boot__titulo">Abre la app con un servidor</p>
+            <p class="boot__texto">
+              Este archivo está abierto con doble clic (<code>file://</code>),
+              y el navegador bloquea los módulos y la caché en ese modo.
+            </p>
+            <ol class="boot__pasos">
+              <li>Abre <strong>Terminal</strong> o <strong>PowerShell</strong> en la carpeta del proyecto.</li>
+              <li>Escribe <code>python -m http.server 8080</code> y pulsa <strong>Enter</strong>.</li>
+              <li>En el navegador abre <code>http://localhost:8080</code>.</li>
+            </ol>
+            <p class="boot__texto">
+              Si no tienes Python, usa cualquier servidor estático
+              (<code>npx serve</code>, VS&nbsp;Code con Live&nbsp;Server, etc.).
+            </p>
+          </div>`;
+      });
+    }
+  </script>
+
+  <div id="app" class="app" hidden></div>
+
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+  <div id="modal-root"></div>
+
+  <!-- Supabase (UMD, cacheable por el service worker) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((e) => {
+          console.warn('Service worker no registrado:', e);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prueba de formularios · La Jungla</title>
+</head>
+<body>
+  <div id="salida" hidden></div>
+  <script type="module">
+    import { crearFormulario, leerFormulario } from '../js/lib/ui.js';
+
+    const CAMPOS = [
+      { nombre: 'usuario', etiqueta: 'Usuario', obligatorio: true,
+        patron: /^[a-z0-9._-]{3,20}$/,
+        mensajePatron: 'De 3 a 20 caracteres: a-z, 0-9, punto, guion bajo o guion.',
+        transformar: (s) => s.toLowerCase() },
+      { nombre: 'email', etiqueta: 'Email', tipo: 'email' },
+      { nombre: 'nombre', etiqueta: 'Nombre', obligatorio: true },
+      { nombre: 'peso', etiqueta: 'Peso', tipo: 'number', min: 1, max: 1000 },
+    ];
+
+    function caso(valores) {
+      const form = crearFormulario(CAMPOS);
+      for (const [k, v] of Object.entries(valores)) {
+        if (form.elements[k]) form.elements[k].value = v;
+      }
+      const { valores: v, errores } = leerFormulario(form, CAMPOS);
+      return { v, errores };
+    }
+
+    const pruebas = [
+      { desc: 'usuario en mayúsculas se normaliza',
+        r: caso({ usuario: '  CARLOS.C ', nombre: 'Carlos' }),
+        ok: (x) => x.v.usuario === 'carlos.c' && !Object.keys(x.errores).length },
+      { desc: 'usuario con ñ se rechaza',
+        r: caso({ usuario: 'juanñ', nombre: 'Juan' }),
+        ok: (x) => !!x.errores.usuario },
+      { desc: 'usuario corto se rechaza',
+        r: caso({ usuario: 'ab', nombre: 'Ana' }),
+        ok: (x) => !!x.errores.usuario },
+      { desc: 'usuario con espacio se rechaza',
+        r: caso({ usuario: 'ana perez', nombre: 'Ana' }),
+        ok: (x) => !!x.errores.usuario },
+      { desc: 'usuario largo (21) se rechaza',
+        r: caso({ usuario: 'a'.repeat(21), nombre: 'Ana' }),
+        ok: (x) => !!x.errores.usuario },
+      { desc: 'usuario de 20 caracteres pasa',
+        r: caso({ usuario: 'a'.repeat(20), nombre: 'Ana' }),
+        ok: (x) => !x.errores.usuario },
+      { desc: 'email vacío permitido (opcional)',
+        r: caso({ usuario: 'ana', nombre: 'Ana', email: '' }),
+        ok: (x) => !x.errores.email && x.v.email === null },
+      { desc: 'email mal formado se rechaza',
+        r: caso({ usuario: 'ana', nombre: 'Ana', email: 'no-es-email' }),
+        ok: (x) => !!x.errores.email },
+      { desc: 'nombre obligatorio',
+        r: caso({ usuario: 'ana' }),
+        ok: (x) => !!x.errores.nombre },
+      { desc: 'número fuera de rango',
+        r: caso({ usuario: 'ana', nombre: 'Ana', peso: '5000' }),
+        ok: (x) => !!x.errores.peso },
+      { desc: 'número válido',
+        r: caso({ usuario: 'ana', nombre: 'Ana', peso: '450.5' }),
+        ok: (x) => !x.errores.peso && x.v.peso === 450.5 },
+    ];
+
+    const resultados = pruebas.map((p) => ({
+      desc: p.desc,
+      pasa: !!p.ok(p.r),
+      errores: p.r.errores,
+    }));
+
+    const d = document.createElement('div');
+    d.id = 'resultado-prueba';
+    d.textContent = JSON.stringify(resultados);
+    document.body.appendChild(d);
+  </script>
+</body>
+</html>

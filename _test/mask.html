@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prueba de mask · La Jungla</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f2a21; }
+    .caja { width: 256px; height: 256px; display: inline-block; }
+    .ico--raster {
+      display: inline-block;
+      background-color: #e8bf6b;
+      -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+      -webkit-mask-position: center; mask-position: center;
+      -webkit-mask-size: contain;     mask-size: contain;
+    }
+  </style>
+</head>
+<body>
+  <div class="caja" id="a"></div>
+  <div class="caja" id="b"></div>
+  <script type="module">
+    import { icono } from '../js/lib/icons.js';
+    // La página vive en /_test/, así que se prefija la ruta relativa a la raíz
+    const raro = (s) => s.replaceAll('icons/flaticon/', '../icons/flaticon/');
+    document.getElementById('a').innerHTML = raro(icono('caballos', 256));
+    document.getElementById('b').innerHTML = raro(icono('herrajes', 256));
+
+    // Comprueba que la imagen de la máscara exista de verdad (fetch)
+    const src = [...document.querySelectorAll('.ico--raster')]
+      .map((e) => (getComputedStyle(e).maskImage.match(/url\("?([^")]+)"?\)/) || [])[1])
+      .filter(Boolean);
+    const existen = await Promise.all(src.map(async (u) => {
+      try { const r = await fetch(u); return r.ok; } catch { return false; }
+    }));
+
+    const r = {
+      raster: document.querySelectorAll('.ico--raster').length,
+      conMask: src.length,
+      imagenesOk: existen.filter(Boolean).length,
+      color: getComputedStyle(document.querySelector('.ico--raster')).backgroundColor,
+    };
+    const d = document.createElement('div');
+    d.id = 'resultado-prueba';
+    d.style.display = 'none';
+    d.textContent = JSON.stringify(r);
+    document.body.appendChild(d);
+  </script>
+</body>
+</html>
