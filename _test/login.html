@@ -48,8 +48,11 @@
             return Promise.resolve({ data: null, error: { message: 'PGRST202: Could not find the function' } });
           }
           const u = String(args.p_usuario || '').toLowerCase();
-          const cuenta = CUENTAS[u] || Object.values(CUENTAS).find((c) => c.email === u);
-          return Promise.resolve({ data: cuenta ? cuenta.email : null, error: null });
+          // Réplica exacta de la función SQL: solo cuentas ACTIVAS
+          const cuenta = CUENTAS[u];
+          const email = (cuenta && cuenta.activo) ? cuenta.email
+            : Object.values(CUENTAS).find((c) => c.activo && c.email === u)?.email || null;
+          return Promise.resolve({ data: email, error: null });
         },
         auth: {
           getSession: () => Promise.resolve({ data: { session: window.__SESION ? { user: { id: 'u1' } } : null } }),
@@ -96,9 +99,21 @@
       if (!form) return { entrada, sinFormulario: true };
       form.identidad.value = entrada;
       form.password.value = password;
+      // Quitar toasts previos para no leer mensajes arrastrados
+      document.querySelectorAll('#toast-root .toast').forEach((t) => t.remove());
       form.requestSubmit();
-      await espera(450);
-      const toast = document.querySelector('#toast-root .toast');
+
+      // Espera a que pase algo: que desaparezca el formulario (éxito)
+      // o que aparezca un toast (error)
+      const inicio = Date.now();
+      let toast = null;
+      while (Date.now() - inicio < 4000) {
+        await espera(120);
+        toast = document.querySelector('#toast-root .toast');
+        if (!document.querySelector('.login__form') || toast) break;
+      }
+      toast = document.querySelector('#toast-root .toast');
+
       return {
         entrada,
         rpc: window.__LOG.find((l) => l.rpc)?.args || null,
@@ -108,8 +123,22 @@
       };
     }
 
+    // Espera a que exista el formulario (más fiable que un tiempo fijo:
+    // con perfil de Chrome frío los módulos tardan más en cargar)
+    async function esperarFormulario(ms = 12000) {
+      const inicio = Date.now();
+      while (Date.now() - inicio < ms) {
+        if (document.querySelector('.login__form')) return true;
+        await espera(150);
+      }
+      return false;
+    }
+
     window.addEventListener('load', async () => {
-      await espera(1800);
+      const listo = await esperarFormulario();
+      if (!listo) {
+        window.__ERRORES.push('No apareció el formulario de acceso');
+      }
       const resultados = [];
       // Caso email directo: en una carga aparte (?caso=email)
       if (new URLSearchParams(location.search).get('caso') === 'email') {

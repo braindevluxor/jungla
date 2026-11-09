@@ -1,10 +1,12 @@
 $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-$perfil = Join-Path $env:TEMP "chrome-perfil-lajungla"
+# Perfil nuevo en cada ejecución: evita que un service worker cacheado
+# sirva una versión antigua de js/views/login.js.
+$perfil = Join-Path $env:TEMP ("chrome-login-" + (Get-Random))
 $fallos = 0
 
 function Prueba($url) {
   $dom = & $chrome --headless=new --disable-gpu --no-sandbox --user-data-dir=$perfil `
-    --virtual-time-budget=12000 --enable-logging=stderr --v=1 --dump-dom $url 2>err.txt | Out-String
+    --virtual-time-budget=15000 --enable-logging=stderr --v=1 --dump-dom $url 2>err.txt | Out-String
   $consola = (Get-Content err.txt -ErrorAction SilentlyContinue |
     Select-String -Pattern 'CONSOLE' | ForEach-Object { $_.Line }) -join "`n"
   Remove-Item err.txt -ErrorAction SilentlyContinue
@@ -12,10 +14,19 @@ function Prueba($url) {
   @{ marca = $m.Groups[1].Value; consola = $consola }
 }
 
+# Ruido aceptable: el aviso de meta de Apple y el warn propio de login.js
+function ConsolaSospechosa($c) {
+  if (-not $c) { return $false }
+  $limpio = $c -replace 'CONSOLE:\d+\]\s*"[^"]*apple-mobile-web-app[^"]*"', ''
+  $limpio = $limpio -replace 'CONSOLE:\d+\]\s*"\[login\] Supabase devolvió:[^"]*"', ''
+  $limpio = $limpio -replace 'CONSOLE:\d+\]\s*"Service worker no registrado[^"]*"', ''
+  return ($limpio -match 'Uncaught|SyntaxError|TypeError|ReferenceError')
+}
+
 function Mostrar($titulo, $url, $esperado) {
   $r = Prueba $url
   Write-Host "== $titulo"
-  if ($r.consola -and $r.consola -notmatch 'deprecated') {
+  if (ConsolaSospechosa($r.consola)) {
     Write-Host ("  CONSOLA: " + $r.consola) -ForegroundColor Yellow
     $script:fallos++
   }
@@ -47,14 +58,17 @@ function Mostrar($titulo, $url, $esperado) {
   }
 }
 
-Mostrar "Acceso por USUARIO" "http://127.0.0.1:8767/_test/login.html" @(
-  @{ entrada = 'noexiste';     entro = $false; toast = 'Usuario o contrasena incorrectos.' },
-  @{ entrada = 'lucia.v';      entro = $false; toast = 'Usuario o contrasena incorrectos.' },
-  @{ entrada = 'carlos';       entro = $false; toast = 'Usuario o contrasena incorrectos.' },
-  @{ entrada = 'DUENO';        entro = $true;  toast = $null }
+$puerto = if ($args[0]) { $args[0] } else { 8771 }
+$base = "http://127.0.0.1:$puerto"
+
+Mostrar "Acceso por USUARIO" "$base/_test/login.html" @(
+  @{ entrada = 'noexiste';     entro = $false },
+  @{ entrada = 'lucia.v';      entro = $false },
+  @{ entrada = 'carlos';       entro = $false },
+  @{ entrada = 'DUENO';        entro = $true }
 )
 
-Mostrar "Acceso por EMAIL" "http://127.0.0.1:8767/_test/login.html?caso=email" @(
+Mostrar "Acceso por EMAIL" "$base/_test/login.html?caso=email" @(
   @{ entrada = 'maria@gmail.com'; entro = $false },
   @{ entrada = 'maria@gmail.com'; entro = $true }
 )

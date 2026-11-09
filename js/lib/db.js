@@ -13,12 +13,19 @@ export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
 /** Traduce errores de Supabase a mensajes amigables. */
 export function mensajeError(err) {
   const m = err?.message || String(err || '');
+  const codigo = err?.code || err?.error_code || '';
+
+  if (codigo === 'usuario_no_encontrado') {
+    return 'No existe ningún usuario activo con ese nombre. Comprueba el usuario o pide al dueño que te dé de alta.';
+  }
+  if (/email not confirmed/i.test(m) || codigo === 'email_not_confirmed') {
+    return 'Cuenta pendiente de confirmación. Revisa tu correo o pide al dueño que la confirme.';
+  }
   if (/duplicate key|unique constraint/i.test(m)) {
     return /usuario/i.test(m) ? 'Ese usuario ya está en uso.' : 'Ya existe un registro con ese valor.';
   }
   if (/row-level security|permission denied/i.test(m)) return 'No tienes permisos para esta acción.';
-  if (/invalid login credentials/i.test(m)) return 'Usuario o contraseña incorrectos.';
-  if (/email not confirmed/i.test(m)) return 'Cuenta pendiente de confirmación. Contacta al dueño.';
+  if (/invalid login credentials|invalid_credentials/i.test(m)) return 'Usuario o contraseña incorrectos.';
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Sin conexión con el servidor. Revisa tu red.';
   if (/Password should be/i.test(m)) return 'La contraseña debe tener al menos 6 caracteres.';
   if (/already registered|already been registered/i.test(m)) return 'Ese email ya está registrado.';

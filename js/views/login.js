@@ -82,10 +82,19 @@ export function vistaLogin() {
     try {
       // Usuario → email interno de la cuenta (o email directo)
       const email = await resolverLogin(identidad);
-      if (!email) throw { message: 'invalid login credentials' };
+      if (!email) {
+        // No existe perfil activo con ese usuario (o no se ejecutó el SQL 03)
+        throw { code: 'usuario_no_encontrado', message: 'Usuario no encontrado' };
+      }
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        // El detalle real se ve en consola; el usuario recibe un mensaje claro
+        console.warn('[login] Supabase devolvió:', JSON.stringify({
+          message: error.message, code: error.code, status: error.status,
+        }));
+        throw error;
+      }
       // El render lo dispara onAuthStateChange
     } catch (err) {
       toast(mensajeError(err), 'error');
