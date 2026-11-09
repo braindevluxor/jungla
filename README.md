@@ -25,7 +25,7 @@ app ya cargada sin conexión y guarda los iconos en caché.
 
 ---
 
-## Puesta en marcha (5 pasos)
+## Puesta en marcha (7 pasos)
 
 ### 1. Limpiar las tablas existentes de Supabase
 
@@ -64,7 +64,26 @@ En **Supabase Dashboard → Authentication → Providers → Email**:
   que entren de inmediato sin validar el correo. Si lo dejas activado, cada
   usuario nuevo deberá pulsar el enlace de su correo la primera vez.
 
-### 5. Ejecutar la app en local
+### 5. (Opcional) Cargar datos de prueba
+
+Pega [`sql/05_datos_prueba.sql`](sql/05_datos_prueba.sql) y **Run**. Carga
+6 caballos con todo su entorno para ver la app poblada:
+
+| Sección | Qué incluye |
+|---|---|
+| Caballos | 6 (5 activos + 1 vendido, para probar los filtros de estado) |
+| Alimentación | 15 horarios, 14 activos (uno pausado), 3 tomas/día |
+| Alimentos | 6 en stock, 2 por debajo del mínimo y 1 que vence pronto |
+| Medicinas | 6, una agotada (0) y otra ya vencida |
+| Herrajes | 6, uno con la próxima fecha **vencida** y dos en los próximos 14 días |
+| Veterinario | 8 registros, 2 con cita futura |
+| Competencias | 6 participaciones, 5 podios, 1.700 en premios |
+
+> Las fechas se calculan con `current_date`, así que las alertas y citas
+> siguen siendo relevantes el día que lo ejecutes. El script **se niega a
+> ejecutarse si ya hay caballos**, para no pisar datos reales.
+
+### 6. Ejecutar la app en local
 
 ```powershell
 # desde la carpeta del proyecto
@@ -78,7 +97,7 @@ Abre <http://localhost:8080> y entra con el **usuario** del dueño
 > service worker están bloqueados por CORS en ese modo, así que la app no carga.
 > Si lo haces, verás un aviso con estas instrucciones en pantalla. Necesitas HTTP:
 
-### 6. Crear el resto de usuarios
+### 7. Crear el resto de usuarios
 
 Entrando como **dueño**, ve a **Usuarios → Nuevo usuario** y rellena:
 
@@ -137,7 +156,8 @@ La Jungla/
 │   ├── logo.png            Logotipo original (dorado, fondo transparente)
 │   ├── logo.webp           Versión WebP con base verde (la que usa la app)
 │   └── convertir_logo.py   Regenera logo.webp desde logo.png
-└── sql/                    00 limpieza · 01 esquema · 02 dueño · 03 acceso por usuario
+└── sql/                    00 limpieza · 01 esquema · 02 dueño · 03 acceso
+                            · 04 reset contraseña · 05 datos de prueba
 ```
 
 ### Roles y seguridad
@@ -180,6 +200,17 @@ Chrome headless y devuelve 0 si todo pasa.
 | `_test/iconos.html` | Iconos SVG y raster en varios fondos |
 | `_test/mask.html` | Que los PNG de Flaticon cargan y se pintan |
 | `_test/menu.html` | Menú lateral completo con el CSS real |
+| `_test/validar_sql.py` | Valida el `05_datos_prueba.sql` contra el AST de PostgreSQL |
+
+```powershell
+# Validación de los scripts SQL (requiere: pip install pglast)
+python _test/validar_sql.py
+```
+
+Comprueba lo que el parser solo no puede: nº de columnas de cada `INSERT`
+frente a sus filas, que los nombres de caballo y de tipo referenciados
+existan de verdad, y la coherencia de cifras (consumo diario, alertas de
+stock, podios, premios y citas futuras).
 
 ---
 
